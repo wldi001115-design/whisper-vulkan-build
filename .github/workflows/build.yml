@@ -31,11 +31,17 @@ jobs:
           if ($sha -ne $env:WHISPER_SHA256) { throw "checksum $sha" }
           tar -xzf whisper.tar.gz
           Rename-Item "whisper.cpp-$env:WHISPER_VERSION" src
+      - name: SPIRV-Headers
+        shell: pwsh
+        run: |
+          git clone --depth 1 --branch "vulkan-sdk-$env:VULKAN_VERSION" https://github.com/KhronosGroup/SPIRV-Headers.git spirv
+          cmake -S spirv -B spirv/build -DCMAKE_INSTALL_PREFIX="$env:RUNNER_TEMP\spirv" -DSPIRV_HEADERS_ENABLE_TESTS=OFF
+          cmake --install spirv/build
       - name: Build
         shell: pwsh
         working-directory: src
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DGGML_VULKAN=ON -DGGML_NATIVE=OFF -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_SDL2=OFF
+          cmake -S . -B build "-DCMAKE_PREFIX_PATH=$env:RUNNER_TEMP\spirv;$env:VULKAN_SDK" -DCMAKE_BUILD_TYPE=Release -DGGML_VULKAN=ON -DGGML_NATIVE=OFF -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_SDL2=OFF
           cmake --build build --config Release --target whisper-cli whisper-server -j 4
       - name: Package
         shell: pwsh
