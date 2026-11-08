@@ -22,6 +22,7 @@ jobs:
           cuda: '11.8.0'
           method: network
           sub-packages: '["nvcc","cudart","cublas","cublas_dev","visual_studio_integration"]'
+      - uses: ilammy/msvc-dev-cmd@v1
       - name: whisper.cpp source
         shell: pwsh
         run: |
@@ -33,15 +34,17 @@ jobs:
       - name: Build
         shell: pwsh
         working-directory: src
+        env:
+          CUDAFLAGS: '-allow-unsupported-compiler -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH'
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON -DGGML_CUDA_FORCE_MMQ=ON "-DCMAKE_CUDA_ARCHITECTURES=61-virtual;75-real;80-virtual" "-DCMAKE_CUDA_FLAGS=-allow-unsupported-compiler -D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH" -DGGML_NATIVE=OFF -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_SDL2=OFF
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON -DGGML_CUDA_FORCE_MMQ=ON "-DCMAKE_CUDA_ARCHITECTURES=61-virtual;75-real;80-virtual" -DGGML_NATIVE=OFF -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_SDL2=OFF
           cmake --build build --config Release --target whisper-cli whisper-server -j 4
       - name: Package
         shell: pwsh
         run: |
           New-Item -ItemType Directory out | Out-Null
-          Copy-Item src\build\bin\Release\whisper-cli.exe, src\build\bin\Release\whisper-server.exe out\
-          Get-ChildItem src\build\bin\Release\*.dll -ErrorAction SilentlyContinue | Copy-Item -Destination out\
+          Copy-Item src\build\bin\whisper-cli.exe, src\build\bin\whisper-server.exe out\
+          Get-ChildItem src\build\bin\*.dll -ErrorAction SilentlyContinue | Copy-Item -Destination out\
           Copy-Item "$env:CUDA_PATH\bin\cudart64_110.dll" out\
           Copy-Item src\LICENSE out\whisper-cpp-LICENSE.txt
           Compress-Archive -Path out\* -DestinationPath "whisper-$env:WHISPER_VERSION-cuda-mmq-win-x64.zip"
